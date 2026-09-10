@@ -1,0 +1,258 @@
+metadata:
+  name: "Furnace Protection & Zone Control"
+  description: "Valid Google Home schema with fully isolated day/night zones, anti-short cycles, and separate cooldown schedules."
+
+automations:
+  # ===========================================================================
+  # ENGINE 1: EMERGENCY OVERHEAT PROTECTION
+  # ===========================================================================
+  - starters:
+      - type: device.state.TemperatureSetting
+        device: Kitchen(Kitchen Thermostat) - Kitchen
+        state: thermostatTemperatureAmbient
+        greaterThan: 35C
+      - type: device.state.TemperatureSetting
+        device: Basement Thermostat - Basement
+        state: thermostatTemperatureAmbient
+        greaterThan: 35C
+    actions:
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+          - Basement Thermostat - Basement
+        thermostatTemperatureSetpoint: 15.0C
+      - type: home.command.Notification
+        title: "Emergency Alert"
+        body: "Emergency Shutdown Active: High temperatures detected."
+
+  # ===========================================================================
+  # ENGINE 2: KITCHEN & DINING - DAYTIME HEATING TRIGGER (06:00 - 22:00)
+  # ===========================================================================
+  - starters:
+      - type: device.state.TemperatureSetting
+        device: Kitchen(Kitchen Thermostat) - Kitchen
+        state: thermostatTemperatureAmbient
+        lessThan: 21.0C
+        suppressFor: 30min
+      - type: device.state.TemperatureControl
+        device: Temperature & Humidity Sensor - Dining room
+        state: temperatureAmbient
+        lessThan: 21.0C
+        suppressFor: 30min
+    condition:
+      type: and
+      conditions:
+        - type: time.between
+          after: 06:00
+          before: 22:00
+        - type: device.state.OnOff
+          device: Kitchen Thermostat Lock - Smartthings
+          state: on
+          is: false
+    actions:
+      # ENGAGE KITCHEN LOCK
+      - type: device.command.OnOff
+        devices:
+          - Kitchen Thermostat Lock - Smartthings
+        on: true
+      - type: device.command.ThermostatSetMode
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatMode: heat
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatTemperatureSetpoint: 23.0C
+      - type: time.delay
+        for: 30min
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatTemperatureSetpoint: 21.0C
+      - type: time.delay
+        for: 15min
+      # RELEASE KITCHEN LOCK
+      - type: device.command.OnOff
+        devices:
+          - Kitchen Thermostat Lock - Smartthings
+        on: false
+
+  # ===========================================================================
+  # ENGINE 3A: BASEMENT - DAYTIME HEATING TRIGGER (07:00 - 22:00)
+  # ===========================================================================
+  - starters:
+      - type: device.state.TemperatureSetting
+        device: Basement Thermostat - Basement
+        state: thermostatTemperatureAmbient
+        lessThan: 18.0C
+        suppressFor: 30min
+    condition:
+      type: and
+      conditions:
+        - type: time.between
+          after: 07:00
+          before: 22:00
+        - type: device.state.OnOff
+          device: Basement Thermostat Lock - Smartthings
+          state: on
+          is: false
+    actions:
+      # ENGAGE BASEMENT LOCK
+      - type: device.command.OnOff
+        devices:
+          - Basement Thermostat Lock - Smartthings
+        on: true
+      - type: device.command.ThermostatSetMode
+        devices:
+          - Basement Thermostat - Basement
+        thermostatMode: heat
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Basement Thermostat - Basement
+        thermostatTemperatureSetpoint: 25.0C
+      - type: time.delay
+        for: 30min
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Basement Thermostat - Basement
+        thermostatTemperatureSetpoint: 18.0C
+      - type: time.delay
+        for: 15min
+      # RELEASE BASEMENT LOCK
+      - type: device.command.OnOff
+        devices:
+          - Basement Thermostat Lock - Smartthings
+        on: false
+
+  # ===========================================================================
+  # ENGINE 3B: BASEMENT - NIGHTTIME HEATING TRIGGER (22:00 - 07:00)
+  # ===========================================================================
+  - starters:
+      - type: device.state.TemperatureSetting
+        device: Basement Thermostat - Basement
+        state: thermostatTemperatureAmbient
+        lessThan: 18.0C
+        suppressFor: 30min
+    condition:
+      type: and
+      conditions:
+        - type: time.between
+          after: 22:00
+          before: 07:00
+        - type: device.state.OnOff
+          device: Basement Thermostat Lock - Smartthings
+          state: on
+          is: false
+    actions:
+      # ENGAGE BASEMENT LOCK
+      - type: device.command.OnOff
+        devices:
+          - Basement Thermostat Lock - Smartthings
+        on: true
+      - type: device.command.ThermostatSetMode
+        devices:
+          - Basement Thermostat - Basement
+        thermostatMode: heat
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Basement Thermostat - Basement
+        thermostatTemperatureSetpoint: 22.0C
+      - type: time.delay
+        for: 30min
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Basement Thermostat - Basement
+        thermostatTemperatureSetpoint: 18.0C
+      - type: time.delay
+        for: 15min
+      # RELEASE BASEMENT LOCK
+      - type: device.command.OnOff
+        devices:
+          - Basement Thermostat Lock - Smartthings
+        on: false
+
+  # ===========================================================================
+  # ENGINE 4A: KITCHEN BEDTIME COOLDOWN (ONLY AT 22:00)
+  # ===========================================================================
+  - starters:
+      - type: time.schedule
+        at: 22:00 
+    condition:
+      type: device.state.OnOff
+      device: Kitchen Thermostat Lock - Smartthings
+      state: on
+      is: false
+    actions:
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatTemperatureSetpoint: 19.0C
+
+  # ===========================================================================
+  # ENGINE 4B: BASEMENT MORNING COOLDOWN (ONLY AT 07:00)
+  # ===========================================================================
+  - starters:
+      - type: time.schedule
+        at: 07:00
+    condition:
+      type: device.state.OnOff
+      device: Basement Thermostat Lock - Smartthings
+      state: on
+      is: false
+    actions:
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Basement Thermostat - Basement
+        thermostatTemperatureSetpoint: 15.0C
+
+  # ===========================================================================
+  # ENGINE 5: KITCHEN & DINING - NIGHTTIME COMFORT TRIGGER (22:00 - 06:00)
+  # ===========================================================================
+  - starters:
+      - type: device.state.TemperatureSetting
+        device: Kitchen(Kitchen Thermostat) - Kitchen
+        state: thermostatTemperatureAmbient
+        lessThan: 18.0C 
+        suppressFor: 30min
+      - type: device.state.TemperatureControl
+        device: Temperature & Humidity Sensor - Dining room
+        state: temperatureAmbient
+        lessThan: 18.0C
+        suppressFor: 30min
+    condition:
+      type: and
+      conditions:
+        - type: time.between
+          after: 22:00
+          before: 06:00
+        - type: device.state.OnOff
+          device: Kitchen Thermostat Lock - Smartthings
+          state: on
+          is: false
+    actions:
+      # ENGAGE KITCHEN LOCK
+      - type: device.command.OnOff
+        devices:
+          - Kitchen Thermostat Lock - Smartthings
+        on: true
+      - type: device.command.ThermostatSetMode
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatMode: heat
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatTemperatureSetpoint: 22.0C 
+      - type: time.delay
+        for: 30min
+      - type: device.command.ThermostatTemperatureSetpoint
+        devices:
+          - Kitchen(Kitchen Thermostat) - Kitchen
+        thermostatTemperatureSetpoint: 19.0C 
+      - type: time.delay
+        for: 15min
+      # RELEASE KITCHEN LOCK
+      - type: device.command.OnOff
+        devices:
+          - Kitchen Thermostat Lock - Smartthings
+        on: false
